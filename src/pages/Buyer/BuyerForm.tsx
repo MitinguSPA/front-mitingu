@@ -208,7 +208,7 @@ const BuyerForm: React.FC<BuyerFormProps> = ({ onSubmit, metodo_pago }) => {
         const storeTemplate = import.meta.env.VITE_EMAILJS_TEMPLATE_STORE;
         const buyerTemplate = import.meta.env.VITE_EMAILJS_TEMPLATE_BUYER;
         const publicKey = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
-        const tiendaEmail = "contacto.mitingu@gmail.com";
+        const tiendaEmail = "sebanorero@gmail.com";
 
         try {
           await emailjs.send(
