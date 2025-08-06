@@ -139,11 +139,12 @@ const BuyerForm: React.FC<BuyerFormProps> = ({ onSubmit, metodo_pago }) => {
           })),
           donde_se_genero: "web",
         };
-
+        const hostLink = import.meta.env.VITE_HOST_LINK;
         const res = await createPedidoConItems(pedidoData);
         const token = await getPagoLink(res.data.documentId);
         console.log("token creado:", token.data?.[0]?.token);
-        const link = `https://e-commerce-mitingu-production.up.railway.app/checkout/payment-proof-upload/token/${token.data?.[0]?.token}`;
+        // const link = `https://e-commerce-mitingu-production.up.railway.app/checkout/payment-proof-upload/token/${token.data?.[0]?.token}`;
+        const link = `${hostLink}/checkout/payment-proof-upload/token/${token.data?.[0]?.token}`;
 
         console.log("link de pago:", link);
         const botonComprobanteHTML =
@@ -208,7 +209,7 @@ const BuyerForm: React.FC<BuyerFormProps> = ({ onSubmit, metodo_pago }) => {
         const storeTemplate = import.meta.env.VITE_EMAILJS_TEMPLATE_STORE;
         const buyerTemplate = import.meta.env.VITE_EMAILJS_TEMPLATE_BUYER;
         const publicKey = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
-        const tiendaEmail = "contacto.mitingu@gmail.com";
+        const tiendaEmail = import.meta.env.VITE_EMAILJS_EMAIL;
 
         try {
           await emailjs.send(
