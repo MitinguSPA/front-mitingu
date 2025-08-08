@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import ProductCard from "../../components/ProductCard/ProductCard";
-import { getProductsPaginated } from "../../services/Product";
+import { getProducts } from "../../services/Product";
 import { Product } from "../../types";
 import { Search, Filter, X, ChevronLeft, ChevronRight, ChevronDown } from "lucide-react";
 import { getCategories } from "../../services/Categori";
@@ -109,7 +109,11 @@ const fadeInUp = {
 };
 
 const Shop: React.FC = () => {
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
+  const [displayedProducts, setDisplayedProducts] = useState<Product[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+
   const [currentPage, setCurrentPage] = useState(1);
   const [pageCount, setPageCount] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
@@ -118,10 +122,9 @@ const Shop: React.FC = () => {
   const [sortBy, setSortBy] = useState("name");
   const [totalProducts, setTotalProducts] = useState(0);
   const [categories, setCategories] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const location = useLocation();
-
   const queryParams = new URLSearchParams(location.search);
   const categoryFromQuery = queryParams.get("categoria") || "all";
 
@@ -146,21 +149,17 @@ const Shop: React.FC = () => {
   const fetchData = async () => {
     try {
       setIsLoading(true);
-      const response = await getProductsPaginated(currentPage, PAGE_SIZE, {
-        searchTerm,
-        category: selectedCategory,
-        priceRange,
-        sortBy,
-      });
-      setProducts(response.data);
-      setPageCount(response.meta.pagination.pageCount);
-      setTotalProducts(response.meta.pagination.total);
+      const response = await getProducts();
+      const items: Product[] = response?.data ?? response ?? [];
+      setAllProducts(items);
     } catch (error) {
       console.error("Error al obtener productos:", error);
     } finally {
       setIsLoading(false);
     }
   };
+  
+
 
   const fetchCategories = async () => {
     try {
@@ -169,9 +168,7 @@ const Shop: React.FC = () => {
         ...new Set(
           response.data
             .map((cat: any) => cat.nombre || "Sin categoría")
-            .filter(
-              (name: string) => typeof name === "string" && name.trim() !== ""
-            )
+            .filter((name: string) => typeof name === "string" && name.trim() !== "")
         ),
       ].sort((a, b) => a.localeCompare(b));
       setCategories(names);
@@ -182,38 +179,34 @@ const Shop: React.FC = () => {
 
   useEffect(() => {
     setSelectedCategory(categoryFromQuery);
+  }, [location.search]);
+
+  useEffect(() => {
     fetchData();
     fetchCategories();
-  }, [
-    location.search,
-    currentPage,
-    searchTerm,
-    selectedCategory,
-    priceRange,
-    sortBy,
-  ]);
+  }, [location.search]);
 
   useEffect(() => {
     socket.on("nuevoProducto", (newProd: Product) => {
       console.log("🔥 nuevoProducto:", newProd);
-      setProducts((prev) => [newProd, ...prev]);
-      setTotalProducts((prev) => prev + 1);
+      setAllProducts((prev) => [newProd, ...prev]);
     });
-    socket.on("stockUpdated", ({ productId, stock }) => {
+    socket.on("stockUpdated", ({ productId, stock }: any) => {
       console.log("📦 stockUpdated:", productId, stock);
-      setProducts((prev) =>
+      setAllProducts((prev) =>
         prev.map((p) =>
-          p.documentId === productId ? { ...p, stock } : p
+          (p as any).documentId === productId || p.id === productId ? { ...p, stock } : p
         )
       );
     });
     socket.on("productoEliminado", (deleted: string) => {
       console.log("❌ productoEliminado:", deleted);
-      setProducts((prev) => prev.filter((p) => p.documentId !== deleted));
-      setTotalProducts((prev) => prev - 1);
+      setAllProducts((prev) =>
+        prev.filter((p) => !((p as any).documentId === deleted || p.id === deleted))
+      );
     });
 
-    socket.on("orderCreated", (order) => {
+    socket.on("orderCreated", (order: any) => {
       console.log("🆕 orderCreated:", order);
     });
 
@@ -226,8 +219,80 @@ const Shop: React.FC = () => {
     };
   }, []);
 
+  useEffect(() => {
+    const term = searchTerm.trim().toLowerCase();
+
+    const filtered = allProducts.filter((p) => {
+      const catName =
+        (p as any).categoria?.nombre ??
+        (p as any).categoria?.data?.attributes?.nombre ??
+        (p as any).categoria?.data?.nombre ??
+        "";
+
+      if (selectedCategory !== "all" && catName !== selectedCategory) return false;
+
+      if (term) {
+        const nombre = (p.nombre ?? "").toString().toLowerCase();
+        const descripcion = (p.descripcion ?? "").toString().toLowerCase();
+        const codigo = ((p as any).codigo_barra ?? "").toString().toLowerCase();
+        const categoriaLower = catName.toString().toLowerCase();
+
+        if (
+          !(
+            nombre.includes(term) ||
+            descripcion.includes(term) ||
+            categoriaLower.includes(term) ||
+            codigo.includes(term)
+          )
+        ) {
+          return false;
+        }
+      }
+
+      if (priceRange !== "all") {
+        const price = Number((p as any).precio ?? (p as any).price ?? 0);
+        if (priceRange === "0-5000" && price > 5000) return false;
+        if (priceRange === "5000-10000" && (price <= 5000 || price > 10000)) return false;
+        if (priceRange === "10000+" && price <= 10000) return false;
+      }
+
+      return true;
+    });
+
+    const sorted = [...filtered];
+    if (sortBy === "price-asc") {
+      sorted.sort(
+        (a, b) => Number((a as any).precio ?? (a as any).price ?? 0) - Number((b as any).precio ?? (b as any).price ?? 0)
+      );
+    } else if (sortBy === "price-desc") {
+      sorted.sort(
+        (a, b) => Number((b as any).precio ?? (b as any).price ?? 0) - Number((a as any).precio ?? (a as any).price ?? 0)
+      );
+    } else {
+      sorted.sort((a, b) => ((a.nombre ?? "") as string).localeCompare((b.nombre ?? "") as string));
+    }
+
+    setFilteredProducts(sorted);
+
+    const total = sorted.length;
+    setTotalProducts(total);
+    const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    setPageCount(totalPages);
+
+    if (currentPage > totalPages) {
+      setCurrentPage(1);
+      return; 
+    }
+
+    const start = (currentPage - 1) * PAGE_SIZE;
+    const pageItems = sorted.slice(start, start + PAGE_SIZE);
+
+    setDisplayedProducts(pageItems);
+    setProducts(pageItems);
+  }, [allProducts, searchTerm, selectedCategory, priceRange, sortBy, currentPage]);
+
   const hasActiveFilters =
-    searchTerm ||
+    Boolean(searchTerm) ||
     selectedCategory !== "all" ||
     priceRange !== "all" ||
     sortBy !== "name";
@@ -237,6 +302,7 @@ const Shop: React.FC = () => {
     setSelectedCategory("all");
     setPriceRange("all");
     setSortBy("name");
+    setCurrentPage(1);
   };
 
   return (
@@ -366,7 +432,6 @@ const Shop: React.FC = () => {
                   </motion.div>
                 ))}
 
-                {/* Placeholders invisibles para mantener el espacio */}
                 {products.length % 3 !== 0 &&
                   !isLoading &&
                   Array.from({ length: 3 - (products.length % 3) }).map(

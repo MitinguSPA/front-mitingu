@@ -1,17 +1,75 @@
 import { api } from "./Api";
 
+// Ejemplo genérico:
 export const getProducts = async () => {
+  const response = await api.get(
+    // `/api/productos?pagination[pageSize]=10000&fields=nombre,descripcion,stock,activo,costo,codigo_barra,descripcion_corta,precio,imagen_link&populate[imagen][fields][0]=url&populate[categoria][fields][0]=nombre&populate[pedido_items][fields][0]=id`
+    "/api/productos-todos"
+  );
+  return response.data;
+};
+
+
+export const getProductsPaginated = async (
+  page = 1,
+  pageSize = 10,
+  filters: {
+    searchTerm?: string;
+    category?: string;
+    priceRange?: string;
+    sortBy?: string;
+  } = {}
+) => {
   try {
-    const response = await api.get(
-      "/api/productos?pagination[pageSize]=100000&fields=nombre,descripcion,stock,activo,costo,codigo_barra,descripcion_corta,precio,imagen_link&populate[imagen][fields][0]=url&populate[categoria][fields][0]=nombre&populate[pedido_items][fields][0]=id"
-    );
+    let query =
+      "/api/productos?fields=nombre,descripcion,stock,codigo_barra,activo,descripcion_corta,precio,imagen_link" +
+      "&populate[imagen][fields][0]=url" +
+      "&populate[categoria][fields][0]=nombre" +
+      "&populate[pedido_items][fields][0]=id" +
+      `&pagination[page]=${page}` +
+      `&pagination[pageSize]=${pageSize}`;
+
+    // Filtros (mantenemos igual)
+    if (filters.searchTerm && filters.searchTerm.trim() !== "") {
+      query += `&filters[$or][0][nombre][$containsi]=${filters.searchTerm}`;
+      query += `&filters[$or][1][descripcion][$containsi]=${filters.searchTerm}`;
+      query += `&filters[$or][2][categoria][nombre][$containsi]=${filters.searchTerm}`;
+      query += `&filters[$or][3][codigo_barra][$containsi]=${filters.searchTerm}`;
+    }
+
+    if (filters.category && filters.category !== "all") {
+      query += `&filters[categoria][nombre][$eq]=${filters.category}`;
+    }
+
+    if (filters.priceRange && filters.priceRange !== "all") {
+      if (filters.priceRange === "0-5000") {
+        query += `&filters[precio][$lte]=5000`;
+      } else if (filters.priceRange === "5000-10000") {
+        query += `&filters[precio][$gt]=5000&filters[precio][$lte]=10000`;
+      } else if (filters.priceRange === "10000+") {
+        query += `&filters[precio][$gt]=10000`;
+      }
+    }
+
+    if (filters.sortBy) {
+      if (filters.sortBy === "price-asc") {
+        query += `&sort=precio:asc`;
+      } else if (filters.sortBy === "price-desc") {
+        query += `&sort=precio:desc`;
+      } else {
+        query += `&sort=nombre:asc`;
+      }
+    }
+
+    const response = await api.get(query);
     return response.data;
   } catch (error) {
-    console.error("Error fetching products:", error);
+    console.error("Error fetching paginated products:", error);
     throw error;
   }
 };
 
+// Los demás métodos (postProduct, putProduct, deleteProduct, deleteImage) se mantienen igual
 export const postProduct = async (product: {
   nombre: string;
   precio: number;
@@ -147,62 +205,5 @@ export const deleteImage = async (id: number) => {
     await api.delete(`/api/upload/files/${id}`);
   } catch (error) {
     console.error("Error al eliminar imagen:", error);
-  }
-};
-
-export const getProductsPaginated = async (
-  page = 1,
-  pageSize = 10,
-  filters: {
-    searchTerm?: string;
-    category?: string;
-    priceRange?: string;
-    sortBy?: string;
-  } = {}
-) => {
-  try {
-    let query =
-      `/api/productos?fields=nombre,descripcion,stock,codigo_barra,activo,descripcion_corta,precio,imagen_link` +
-      `&populate[imagen][fields][0]=url` +
-      `&populate[categoria][fields][0]=nombre` +
-      `&pagination[page]=${page}` +
-      `&pagination[pageSize]=${pageSize}`;
-
-    if (filters.searchTerm && filters.searchTerm.trim() !== "") {
-      query += `&filters[$or][0][nombre][$containsi]=${filters.searchTerm}`;
-      query += `&filters[$or][1][descripcion][$containsi]=${filters.searchTerm}`;
-      query += `&filters[$or][2][categoria][nombre][$containsi]=${filters.searchTerm}`;
-      query += `&filters[$or][3][codigo_barra][$containsi]=${filters.searchTerm}`;
-    }
-
-    if (filters.category && filters.category !== "all") {
-      query += `&filters[categoria][nombre][$eq]=${filters.category}`;
-    }
-
-    if (filters.priceRange && filters.priceRange !== "all") {
-      if (filters.priceRange === "0-5000") {
-        query += `&filters[precio][$lte]=5000`;
-      } else if (filters.priceRange === "5000-10000") {
-        query += `&filters[precio][$gt]=5000&filters[precio][$lte]=10000`;
-      } else if (filters.priceRange === "10000+") {
-        query += `&filters[precio][$gt]=10000`;
-      }
-    }
-
-    if (filters.sortBy) {
-      if (filters.sortBy === "price-asc") {
-        query += `&sort=precio:asc`;
-      } else if (filters.sortBy === "price-desc") {
-        query += `&sort=precio:desc`;
-      } else {
-        query += `&sort=nombre:asc`;
-      }
-    }
-
-    const response = await api.get(query);
-    return response.data;
-  } catch (error) {
-    console.error("Error fetching paginated products:", error);
-    throw error;
   }
 };
