@@ -34,14 +34,14 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-full px-3 py-2 text-left border border-secondary-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white hover:border-secondary-300 transition-all ${className}`}
+        className={`w-full h-12 px-4 text-left border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white hover:border-gray-300 transition-all duration-200 shadow-sm hover:shadow-md ${className}`}
       >
-        <span className="block truncate text-secondary-900">
+        <span className="block truncate text-gray-800 font-medium">
           {selectedOption ? selectedOption.label : placeholder}
         </span>
         <span className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
           <ChevronDown
-            className={`h-4 w-4 text-secondary-400 transition-transform duration-200 ${
+            className={`h-5 w-5 text-gray-400 transition-transform duration-200 ${
               isOpen ? 'transform rotate-180' : ''
             }`}
           />
@@ -60,7 +60,7 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.15 }}
-              className="absolute z-20 w-full mt-1 bg-white border border-secondary-200 rounded-lg shadow-lg max-h-60 overflow-auto"
+              className="absolute z-20 w-full mt-2 bg-white border-2 border-gray-200 rounded-xl shadow-2xl max-h-60 overflow-auto"
             >
               {options.map((option) => (
                 <button
@@ -70,10 +70,10 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
                     onChange(option.value);
                     setIsOpen(false);
                   }}
-                  className={`w-full px-3 py-2 text-left hover:bg-secondary-50 focus:bg-secondary-50 focus:outline-none transition-colors ${
+                  className={`w-full h-12 px-4 text-left hover:bg-blue-50 focus:bg-blue-50 focus:outline-none transition-colors duration-150 ${
                     value === option.value
-                      ? 'bg-primary-50 text-primary-700 font-medium'
-                      : 'text-secondary-900'
+                      ? 'bg-blue-100 text-blue-800 font-semibold border-l-4 border-blue-500'
+                      : 'text-gray-800 font-medium'
                   }`}
                 >
                   {option.label}
@@ -291,6 +291,11 @@ const Shop: React.FC = () => {
     setProducts(pageItems);
   }, [allProducts, searchTerm, selectedCategory, priceRange, sortBy, currentPage]);
 
+  // Scroll to top when page changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [currentPage]);
+
   const hasActiveFilters =
     Boolean(searchTerm) ||
     selectedCategory !== "all" ||
@@ -306,170 +311,216 @@ const Shop: React.FC = () => {
   };
 
   return (
-    <div className=" container-pad mx-auto py-12 w-900 max-w-7xl min-h-screen">
-      {/* Buscador */}
-      <div className="relative mb-6">
-        <Search
-          className="absolute left-3 top-1/2 transform -translate-y-1/2 text-secondary-400"
-          size={20}
-        />
-        <input
-          type="text"
-          placeholder="Buscar productos..."
-          value={searchTerm}
-          onChange={(e) => {
-            setCurrentPage(1);
-            setSearchTerm(e.target.value);
-          }}
-          className="w-full pl-10 pr-4 py-3 border border-secondary-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 hover:border-secondary-300 transition-all"
-        />
-      </div>
-
-      <div className="flex flex-col md:flex-row gap-8">
-        {/* Filtros */}
-        <div className="md:w-1/4 space-y-4">
-          {/* Categoría */}
-          <div>
-            <label className="block text-sm font-medium text-secondary-700 mb-2">
-              Categoría
-            </label>
-            <CustomSelect
-              value={selectedCategory}
-              onChange={(value) => {
+    <div className="bg-gradient-to-br -mt-20 from-gray-50 via-white to-gray-100 min-h-screen">
+      <div className="container mx-auto px-6 py-16 max-w-7xl">
+        {/* Buscador */}
+        <div className="relative object-center m-10 max-w-2xl mx-auto">
+          <div className="relative">
+            <Search
+              className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"
+              size={22}
+            />
+            <input
+              type="text"
+              placeholder="Buscar productos por nombre, código o categoría..."
+              value={searchTerm}
+              onChange={(e) => {
                 setCurrentPage(1);
-                setSelectedCategory(value);
+                setSearchTerm(e.target.value);
               }}
-              options={categoryOptions}
-              placeholder="Todas las categorías"
+              className="w-full h-14 pl-12 pr-6 text-lg border-2 border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-gray-300 transition-all duration-200 shadow-sm hover:shadow-md bg-white"
             />
           </div>
-
-          {/* Precio */}
-          <div>
-            <label className="block text-sm font-medium text-secondary-700 mb-2">
-              Precio
-            </label>
-            <CustomSelect
-              value={priceRange}
-              onChange={(value) => {
-                setCurrentPage(1);
-                setPriceRange(value);
-              }}
-              options={priceOptions}
-              placeholder="Todos los precios"
-            />
-          </div>
-
-          {/* Ordenar por */}
-          <div>
-            <label className="block text-sm font-medium text-secondary-700 mb-2">
-              Ordenar por
-            </label>
-            <CustomSelect
-              value={sortBy}
-              onChange={(value) => {
-                setCurrentPage(1);
-                setSortBy(value);
-              }}
-              options={sortOptions}
-              placeholder="Nombre (A-Z)"
-            />
-          </div>
-
-          {hasActiveFilters && (
-            <motion.button
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              onClick={clearFilters}
-              className="w-full px-4 py-2 bg-secondary-100 text-secondary-700 rounded-md hover:bg-secondary-200 flex items-center justify-center transition-all"
-            >
-              <X size={16} className="mr-1" />
-              Limpiar filtros
-            </motion.button>
-          )}
         </div>
 
-        {/* Resultados */}
-        <div className="md:w-3/4">
-          <div className="flex justify-between items-center mb-4">
-            <p className="text-secondary-600">
-              Mostrando {products.length} productos de un total de{" "}
-              {totalProducts}
-            </p>
-            {hasActiveFilters && (
-              <div className="flex items-center text-sm text-secondary-500">
-                <Filter size={16} className="mr-1" />
-                Filtros aplicados
+        <div className="flex flex-col lg:flex-row gap-10">
+          {/* Filtros */}
+          <div className="lg:w-80 flex-shrink-0">
+            <div className="pt-20 sticky top-6">
+              <div className="flex items-center mb-6">
+                <Filter className="text-blue-500 mr-3" size={24} />
+                <h2 className="text-xl font-bold text-gray-900">Filtros</h2>
               </div>
-            )}
-          </div>
 
-          <div className="relative" style={{ minHeight: "calc(300px * 7)" }}>
-            {isLoading ? (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500"></div>
-              </div>
-            ) : products.length === 0 ? (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <p className="text-secondary-500 text-lg">
-                  No se encontraron productos.
-                </p>
-              </div>
-            ) : (
-              <motion.div
-                className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-6 pb-8"
-                variants={staggerContainer}
-                initial="hidden"
-                animate="visible"
-              >
-                {products.map((product) => (
-                  <motion.div
-                    key={product.id}
-                    variants={fadeInUp}
-                    className="h-full"
+              <div className="space-y-8">
+                {/* Categoría */}
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-3 uppercase tracking-wide">
+                    Categoría
+                  </label>
+                  <CustomSelect
+                    value={selectedCategory}
+                    onChange={(value) => {
+                      setCurrentPage(1);
+                      setSelectedCategory(value);
+                    }}
+                    options={categoryOptions}
+                    placeholder="Todas las categorías"
+                  />
+                </div>
+
+                {/* Precio */}
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-3 uppercase tracking-wide">
+                    Rango de Precio
+                  </label>
+                  <CustomSelect
+                    value={priceRange}
+                    onChange={(value) => {
+                      setCurrentPage(1);
+                      setPriceRange(value);
+                    }}
+                    options={priceOptions}
+                    placeholder="Todos los precios"
+                  />
+                </div>
+
+                {/* Ordenar por */}
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-3 uppercase tracking-wide">
+                    Ordenar por
+                  </label>
+                  <CustomSelect
+                    value={sortBy}
+                    onChange={(value) => {
+                      setCurrentPage(1);
+                      setSortBy(value);
+                    }}
+                    options={sortOptions}
+                    placeholder="Nombre (A-Z)"
+                  />
+                </div>
+
+                {hasActiveFilters && (
+                  <motion.button
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    onClick={clearFilters}
+                    className="w-full h-12 px-6 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 flex items-center justify-center transition-all duration-200 font-medium border-2 border-red-200 hover:border-red-300"
                   >
-                    <ProductCard product={product} />
-                  </motion.div>
-                ))}
+                    <X size={18} className="mr-2" />
+                    Limpiar Filtros
+                  </motion.button>
+                )}
+              </div>
+            </div>
+          </div>
 
-                {products.length % 3 !== 0 &&
-                  !isLoading &&
-                  Array.from({ length: 3 - (products.length % 3) }).map(
-                    (_, index) => (
-                      <div
-                        key={`placeholder-${index}`}
-                        className="invisible"
-                        style={{ height: "100%" }}
-                      />
-                    )
-                  )}
-              </motion.div>
-            )}
+          {/* Resultados */}
+          <div className="flex-1">
+            {/* Header de resultados */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                  <p className="text-lg font-semibold text-gray-900">
+                    {totalProducts === 0 ? "Sin resultados" : `${totalProducts} productos encontrados`}
+                  </p>
+                  <p className="text-gray-600">
+                    Mostrando {products.length} productos en esta página
+                  </p>
+                </div>
+                {hasActiveFilters && (
+                  <div className="flex items-center px-4 py-2 bg-blue-50 text-blue-700 rounded-xl border border-blue-200">
+                    <Filter size={16} className="mr-2" />
+                    <span className="font-medium">Filtros aplicados</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Grid de productos */}
+            <div className="relative">
+              <div className="min-h-[800px]">
+                {isLoading ? (
+                  <div className="flex items-center justify-center h-96">
+                    <div className="flex flex-col items-center gap-4">
+                      <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-500 border-t-transparent"></div>
+                      <p className="text-gray-600 font-medium">Cargando productos...</p>
+                    </div>
+                  </div>
+                ) : products.length === 0 ? (
+                  <div className="flex items-center justify-center h-96">
+                    <div className="text-center">
+                      <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Search size={32} className="text-gray-400" />
+                      </div>
+                      <h3 className="text-xl font-semibold text-gray-800 mb-2">
+                        No se encontraron productos
+                      </h3>
+                      <p className="text-gray-600">
+                        Intenta ajustar tus filtros o términos de búsqueda
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <motion.div
+                    className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8"
+                    variants={staggerContainer}
+                    initial="hidden"
+                    animate="visible"
+                  >
+                    {products.map((product) => (
+                      <motion.div
+                        key={product.id}
+                        variants={fadeInUp}
+                        className="h-full"
+                      >
+                        <div className="h-full">
+                          <ProductCard product={product} />
+                        </div>
+                      </motion.div>
+                    ))}
+
+                    {/* Placeholders para mantener el grid */}
+                    {products.length % 3 !== 0 &&
+                      !isLoading &&
+                      Array.from({ length: 3 - (products.length % 3) }).map(
+                        (_, index) => (
+                          <div
+                            key={`placeholder-${index}`}
+                            className="invisible h-96"
+                          />
+                        )
+                      )}
+                  </motion.div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Paginado */}
-      <div className="flex justify-center items-center mt-8 space-x-4 pb-12">
-        <button
-          className="btn btn-outline px-3 transition-all"
-          onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-          disabled={currentPage === 1}
-        >
-          <ChevronLeft size={18} />
-          Anterior
-        </button>
-        <span className="text-secondary-700">
-          Página {currentPage} de {pageCount}
-        </span>
-        <button
-          className="btn btn-outline px-3 transition-all"
-          onClick={() => setCurrentPage((p) => Math.min(pageCount, p + 1))}
-          disabled={currentPage === pageCount}
-        >
-          Siguiente
-          <ChevronRight size={18} />
-        </button>
+        {/* Paginación */}
+        {!isLoading && products.length > 0 && (
+          <div className="mt-16 flex justify-center">
+            <div className=" rounded-2xl p-6">
+              <div className="flex items-center gap-6">
+                <button
+                  className="h-12 px-6 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 flex items-center gap-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft size={18} />
+                  Anterior
+                </button>
+                
+                <div className="flex items-center gap-4">
+                  <span className="text-gray-600 font-medium">Página</span>
+                  <span className="text-2xl font-bold text-blue-600">{currentPage}</span>
+                  <span className="text-gray-600 font-medium">de {pageCount}</span>
+                </div>
+
+                <button
+                  className="h-12 px-6 bg-blue-500 text-white rounded-xl hover:bg-blue-600 flex items-center gap-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                  onClick={() => setCurrentPage((p) => Math.min(pageCount, p + 1))}
+                  disabled={currentPage === pageCount}
+                >
+                  Siguiente
+                  <ChevronRight size={18} />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
