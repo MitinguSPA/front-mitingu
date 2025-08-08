@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Search, Filter, Calendar, ChevronDown } from "lucide-react";
 import OrderDetailsModal from "../../components/Admin/OrderDetailsModal";
 import { getPedidos, updatePedidoStatus } from "../../services/Pedidos";
+import { socket } from "../../socket";
 
 interface CustomSelectProps {
   value: string;
@@ -21,7 +22,7 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
 
-  const selectedOption = options.find(option => option.value === value);
+  const selectedOption = options.find((option) => option.value === value);
 
   return (
     <div className="relative">
@@ -33,7 +34,9 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-full ${icon ? 'pl-10' : 'pl-3'} pr-10 py-2 text-left border border-secondary-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white hover:border-secondary-300 transition-colors`}
+        className={`w-full ${
+          icon ? "pl-10" : "pl-3"
+        } pr-10 py-2 text-left border border-secondary-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white hover:border-secondary-300 transition-colors`}
       >
         <span className="block truncate text-secondary-900">
           {selectedOption ? selectedOption.label : placeholder}
@@ -41,7 +44,7 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
         <span className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
           <ChevronDown
             className={`h-4 w-4 text-secondary-400 transition-transform duration-200 ${
-              isOpen ? 'transform rotate-180' : ''
+              isOpen ? "transform rotate-180" : ""
             }`}
           />
         </span>
@@ -71,8 +74,8 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
                   }}
                   className={`w-full px-3 py-2 text-left hover:bg-secondary-50 focus:bg-secondary-50 focus:outline-none transition-colors ${
                     value === option.value
-                      ? 'bg-primary-50 text-primary-700 font-medium'
-                      : 'text-secondary-900'
+                      ? "bg-primary-50 text-primary-700 font-medium"
+                      : "text-secondary-900"
                   }`}
                 >
                   {option.label}
@@ -91,7 +94,6 @@ const Orders: React.FC = () => {
   const [filteredOrders, setFilteredOrders] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("all");
-  const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
   const [dateFilter, setDateFilter] = useState("");
@@ -103,17 +105,9 @@ const Orders: React.FC = () => {
 
   const statusOptions = [
     { value: "all", label: "Todos los estados" },
-    { value: "pendiente", label: "Pendiente" },
-    { value: "en proceso", label: "En proceso" },
-    { value: "completado", label: "Completado" },
-    { value: "cancelado", label: "Cancelado" },
-  ];
-
-  const categoryOptions = [
-    { value: "all", label: "Todas las categorías" },
-    { value: "pendientes", label: "Pendientes y Pagados no entregados" },
-    { value: "finalizados", label: "Pedidos Finalizados" },
-    { value: "cancelados", label: "Pedidos Cancelados" },
+    { value: "pendiente", label: "Pendientes y Pagados no entregados" },
+    { value: "entregado", label: "Pedidos Finalizados" },
+    { value: "cancelado", label: "Pedidos Cancelados" },
   ];
 
   const dateOptions = [
@@ -128,7 +122,6 @@ const Orders: React.FC = () => {
   const fetchAndFormatOrders = async () => {
     try {
       const data = await getPedidos();
-      console.log("Pedidos obtenidos:", data.data);
       const formatted = data.data.map((pedido: any) => ({
         id: pedido.id,
         documentId: pedido.documentId,
@@ -150,11 +143,11 @@ const Orders: React.FC = () => {
         phone: pedido.telefono,
         receiptUrl: pedido.comprobante_tranferencia?.url || null,
       }));
-      
+
       const sorted = formatted.sort((a: any, b: any) => {
         return new Date(b.date).getTime() - new Date(a.date).getTime();
       });
-      
+
       setOrders(sorted);
       return sorted;
     } catch (error) {
@@ -170,6 +163,41 @@ const Orders: React.FC = () => {
 
     setCurrentPage(1);
     fetchData();
+
+    socket.on("orderCreated", (pedido) => {
+      console.log(" ✅ Nuevo pedido recibido:");
+      const formattedOrder = {
+        id: pedido.id,
+        documentId: pedido.documentId,
+        total: pedido.total,
+        status: pedido.estado,
+        date: pedido.fecha,
+        codigo: pedido.codigo_pedido,
+        donde_se_genero: pedido.donde_se_genero,
+        metodo_pago: pedido.metodo_pago,
+        entrgado: pedido.entregado,
+        items:
+          pedido.pedido_items?.map((item: any) => ({
+            name: item.producto?.nombre,
+            quantity: item.cantidad,
+            price: item.precio_unitario,
+          })) || [],
+        customer: pedido.nombre_usuario,
+        email: pedido.email_usuario,
+        phone: pedido.telefono,
+        receiptUrl: pedido.comprobante_tranferencia?.url || null,
+      };
+
+      setOrders((prev) =>
+        [formattedOrder, ...prev].sort(
+          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+        )
+      );
+    });
+
+    return () => {
+      socket.off("orderCreated");
+    };
   }, [showOrderDetails]);
 
   useEffect(() => {
@@ -182,13 +210,13 @@ const Orders: React.FC = () => {
         order.status.toLowerCase() === selectedStatus.toLowerCase();
 
       let matchesCategory = true;
-      if (selectedCategory === "pendientes") {
+      if (selectedStatus === "pendientes") {
         matchesCategory =
           order.status === "pendiente" ||
           (order.status === "pagado" && order.entrgado === false);
-      } else if (selectedCategory === "finalizados") {
+      } else if (selectedStatus === "finalizados") {
         matchesCategory = order.status === "pagado" && order.entrgado === true;
-      } else if (selectedCategory === "cancelados") {
+      } else if (selectedStatus === "cancelados") {
         matchesCategory = order.status === "cancelado";
       }
 
@@ -237,15 +265,7 @@ const Orders: React.FC = () => {
       0
     );
     setTotalAmount(calculatedTotal);
-  }, [
-    orders,
-    searchTerm,
-    selectedStatus,
-    selectedCategory,
-    dateFilter,
-    startDate,
-    endDate,
-  ]);
+  }, [orders, searchTerm, selectedStatus, dateFilter, startDate, endDate]);
 
   const handleUpdateOrderStatus = async (
     orderId: string,
@@ -253,7 +273,12 @@ const Orders: React.FC = () => {
     entregado: boolean
   ) => {
     try {
-      console.log("Actualizando estado del pedido:", orderId, newStatus, entregado);
+      console.log(
+        "Actualizando estado del pedido:",
+        orderId,
+        newStatus,
+        entregado
+      );
       await updatePedidoStatus(orderId, newStatus, entregado);
       const updatedOrders = await fetchAndFormatOrders();
       setOrders(updatedOrders);
@@ -309,8 +334,7 @@ const Orders: React.FC = () => {
     <div>
       <h1 className="text-2xl font-bold text-secondary-900 mb-8">Pedidos</h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        {/* Input de búsqueda */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div className="relative">
           <Search
             className="absolute left-3 top-1/2 transform -translate-y-1/2 text-secondary-400"
@@ -325,7 +349,6 @@ const Orders: React.FC = () => {
           />
         </div>
 
-        {/* Select de estados */}
         <CustomSelect
           value={selectedStatus}
           onChange={setSelectedStatus}
@@ -334,15 +357,6 @@ const Orders: React.FC = () => {
           icon={<Filter size={20} />}
         />
 
-        {/* Select de categorías */}
-        <CustomSelect
-          value={selectedCategory}
-          onChange={setSelectedCategory}
-          options={categoryOptions}
-          placeholder="Todas las categorías"
-        />
-
-        {/* Select de fechas */}
         <CustomSelect
           value={dateFilter}
           onChange={(value) => {
@@ -355,7 +369,6 @@ const Orders: React.FC = () => {
           icon={<Calendar size={20} />}
         />
 
-        {/* Inputs de rango de fechas personalizado */}
         {dateFilter === "custom" && (
           <>
             <div className="relative">
@@ -417,7 +430,10 @@ const Orders: React.FC = () => {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredOrders
-                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                .sort(
+                  (a, b) =>
+                    new Date(b.date).getTime() - new Date(a.date).getTime()
+                )
                 .slice(
                   (currentPage - 1) * itemsPerPage,
                   currentPage * itemsPerPage
